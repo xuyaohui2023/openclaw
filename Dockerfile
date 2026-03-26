@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+#syntax=docker/dockerfile:1.7
 
 # Opt-in extension dependencies at build time (space-separated directory names).
 # Example: docker build --build-arg OPENCLAW_EXTENSIONS="diagnostics-otel matrix" .
