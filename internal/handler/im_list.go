@@ -130,9 +130,16 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusBadRequest, "invalid telegram config: "+err.Error())
 				return
 			}
+			if c.Enabled == nil {
+				t := true
+				c.Enabled = &t
+			}
 			if err := im.SetTelegram(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
+			}
+			if c.Enabled == nil || *c.Enabled {
+				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "telegram")
 			}
 			notifyReload(cfg)
 			writeJSON(w, http.StatusOK, c)
@@ -162,9 +169,16 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusBadRequest, "invalid slack config: "+err.Error())
 				return
 			}
+			if c.Enabled == nil {
+				t := true
+				c.Enabled = &t
+			}
 			if err := im.SetSlack(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
+			}
+			if c.Enabled == nil || *c.Enabled {
+				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "slack")
 			}
 			notifyReload(cfg)
 			writeJSON(w, http.StatusOK, c)
@@ -194,9 +208,16 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusBadRequest, "invalid line config: "+err.Error())
 				return
 			}
+			if c.Enabled == nil {
+				t := true
+				c.Enabled = &t
+			}
 			if err := im.SetLine(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
+			}
+			if c.Enabled == nil || *c.Enabled {
+				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "line")
 			}
 			notifyReload(cfg)
 			writeJSON(w, http.StatusOK, c)

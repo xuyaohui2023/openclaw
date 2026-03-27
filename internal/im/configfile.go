@@ -433,3 +433,86 @@ func DeleteLine(path string) error {
 	}
 	return writeRaw(path, m)
 }
+
+// --- Plugins ---
+
+// EnsureChannelInPlugins ensures that a channel id is registered in the
+// plugins section so that openclaw loads the bundled channel plugin:
+//
+//  1. If plugins.allow is a non-empty array and does not already contain
+//     channelId, it appends channelId.  (When plugins.allow is empty or
+//     absent the allowlist check is skipped and this step is a no-op.)
+//
+//  2. Sets plugins.entries.<channelId>.enabled = true so the entry-based
+//     activation path is also covered.
+//
+// This must be called whenever a channel config is written with enabled=true.
+func EnsureChannelInPlugins(path, channelId string) error {
+	fileMu.Lock()
+	defer fileMu.Unlock()
+	m, err := readRaw(path)
+	if err != nil {
+		return err
+	}
+
+	plugins := pluginsSection(m)
+
+	// 1. Add to plugins.allow when the list exists and is non-empty.
+	if allowRaw, ok := plugins["allow"]; ok {
+		if allow, ok := allowRaw.([]interface{}); ok && len(allow) > 0 {
+			found := false
+			for _, v := range allow {
+				if s, ok := v.(string); ok && s == channelId {
+					found = true
+					break
+				}
+			}
+			if !found {
+				plugins["allow"] = append(allow, channelId)
+			}
+		}
+	}
+
+	// 2. Set plugins.entries.<channelId>.enabled = true.
+	entries := pluginsEntries(plugins)
+	entry := pluginsEntry(entries, channelId)
+	entry["enabled"] = true
+
+	return writeRaw(path, m)
+}
+
+// pluginsSection returns (creating if necessary) the root "plugins" map.
+func pluginsSection(m map[string]interface{}) map[string]interface{} {
+	if v, ok := m["plugins"]; ok {
+		if p, ok := v.(map[string]interface{}); ok {
+			return p
+		}
+	}
+	p := map[string]interface{}{}
+	m["plugins"] = p
+	return p
+}
+
+// pluginsEntries returns (creating if necessary) the plugins.entries map.
+func pluginsEntries(plugins map[string]interface{}) map[string]interface{} {
+	if v, ok := plugins["entries"]; ok {
+		if e, ok := v.(map[string]interface{}); ok {
+			return e
+		}
+	}
+	e := map[string]interface{}{}
+	plugins["entries"] = e
+	return e
+}
+
+// pluginsEntry returns (creating if necessary) the entry map for a single plugin id.
+func pluginsEntry(entries map[string]interface{}, id string) map[string]interface{} {
+	if v, ok := entries[id]; ok {
+		if e, ok := v.(map[string]interface{}); ok {
+			return e
+		}
+	}
+	e := map[string]interface{}{}
+	entries[id] = e
+	return e
+}
