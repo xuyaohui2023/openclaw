@@ -36,6 +36,7 @@ func main() {
 	//   DELETE /api/v1/im?channel=X    delete a channel config
 	auth := middleware.APIKey(cfg.APIKey)
 	mux.Handle("/api/v1/im", auth(handler.IMHandler(cfg)))
+	mux.Handle("/api/v1/port-check", auth(handler.PortCheckHandler()))
 
 	addr := net.JoinHostPort(cfg.Bind, fmt.Sprintf("%d", cfg.Port))
 	srv := &http.Server{
