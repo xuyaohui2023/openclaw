@@ -173,6 +173,9 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				t := true
 				c.Enabled = &t
 			}
+			if c.DmPolicy == "" {
+				c.DmPolicy = "open"
+			}
 			if err := im.SetSlack(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
