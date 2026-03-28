@@ -140,6 +140,9 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.DmPolicy == "open" && len(c.AllowFrom) == 0 {
 				c.AllowFrom = []string{"*"}
 			}
+			if c.GroupPolicy == "" {
+				c.GroupPolicy = "open"
+			}
 			if err := im.SetTelegram(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
@@ -235,9 +238,6 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			}
 			if c.GroupPolicy == "" {
 				c.GroupPolicy = "open"
-			}
-			if c.GroupPolicy == "open" && len(c.GroupAllowFrom) == 0 {
-				c.GroupAllowFrom = []string{"*"}
 			}
 			if err := im.SetLine(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
