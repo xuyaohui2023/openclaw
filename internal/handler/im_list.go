@@ -134,6 +134,12 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				t := true
 				c.Enabled = &t
 			}
+			if c.DmPolicy == "" {
+				c.DmPolicy = "open"
+			}
+			if c.DmPolicy == "open" && len(c.AllowFrom) == 0 {
+				c.AllowFrom = []string{"*"}
+			}
 			if err := im.SetTelegram(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
@@ -176,6 +182,9 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.DmPolicy == "" {
 				c.DmPolicy = "open"
 			}
+			if c.DmPolicy == "open" && len(c.AllowFrom) == 0 {
+				c.AllowFrom = []string{"*"}
+			}
 			if err := im.SetSlack(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
@@ -214,6 +223,12 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.Enabled == nil {
 				t := true
 				c.Enabled = &t
+			}
+			if c.DmPolicy == "" {
+				c.DmPolicy = "open"
+			}
+			if c.DmPolicy == "open" && len(c.AllowFrom) == 0 {
+				c.AllowFrom = []string{"*"}
 			}
 			if err := im.SetLine(cfg.OpenclawConfigPath, c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
