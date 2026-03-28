@@ -176,6 +176,9 @@ func PatchTelegram(path string, req PatchTelegramRequest) (*TelegramConfig, erro
 	if req.DmPolicy != nil {
 		cur.DmPolicy = *req.DmPolicy
 	}
+	if req.GroupPolicy != nil {
+		cur.GroupPolicy = *req.GroupPolicy
+	}
 	if req.AllowFrom != nil {
 		cur.AllowFrom = *req.AllowFrom
 	}

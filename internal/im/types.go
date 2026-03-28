@@ -12,6 +12,8 @@ type TelegramConfig struct {
 	TokenFile string `json:"tokenFile,omitempty"`
 	// DmPolicy controls who can initiate DMs: pairing | allowlist | open | disabled.
 	DmPolicy string `json:"dmPolicy,omitempty"`
+	// GroupPolicy controls group message handling: open | allowlist | disabled.
+	GroupPolicy string `json:"groupPolicy,omitempty"`
 	// AllowFrom lists Telegram numeric user IDs allowed to send DMs (used with allowlist policy).
 	AllowFrom []string `json:"allowFrom,omitempty"`
 	// WebhookURL enables webhook mode. Requires WebhookSecret when set.
@@ -129,6 +131,7 @@ type PatchTelegramRequest struct {
 	BotToken      *string    `json:"botToken"`
 	TokenFile     *string    `json:"tokenFile"`
 	DmPolicy      *string    `json:"dmPolicy"`
+	GroupPolicy   *string    `json:"groupPolicy"`
 	AllowFrom     *[]string  `json:"allowFrom"`
 	WebhookURL    *string    `json:"webhookUrl"`
 	WebhookSecret *string    `json:"webhookSecret"`
