@@ -1404,7 +1404,7 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.list.*.heartbeat.directPolicy":
     'Per-agent override for heartbeat direct/DM delivery policy; use "block" for agents that should only send heartbeat alerts to non-DM destinations.',
   "channels.telegram.configWrites":
-    "Allow Telegram to write config in response to channel events/commands (default: true).",
+    "Allow Telegram to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.telegram.botToken":
     "Telegram bot token used to authenticate Bot API requests for this account/provider config. Use secret/env substitution and rotate tokens if exposure is suspected.",
   "channels.telegram.capabilities.inlineButtons":
@@ -1422,7 +1422,7 @@ export const FIELD_HELP: Record<string, string> = {
   "channels.telegram.execApprovals.target":
     'Controls where Telegram approval prompts are sent: "dm" sends to approver DMs (default), "channel" sends to the originating Telegram chat/topic, and "both" sends to both. Channel delivery exposes the command text to the chat, so only use it in trusted groups/topics.',
   "channels.slack.configWrites":
-    "Allow Slack to write config in response to channel events/commands (default: true).",
+    "Allow Slack to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.slack.botToken":
     "Slack bot token used for standard chat actions in the configured workspace. Keep this credential scoped and rotate if workspace app permissions change.",
   "channels.slack.appToken":
@@ -1434,9 +1434,9 @@ export const FIELD_HELP: Record<string, string> = {
   "channels.slack.capabilities.interactiveReplies":
     "Enable agent-authored Slack interactive reply directives (`[[slack_buttons: ...]]`, `[[slack_select: ...]]`). Default: false.",
   "channels.mattermost.configWrites":
-    "Allow Mattermost to write config in response to channel events/commands (default: true).",
+    "Allow Mattermost to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.discord.configWrites":
-    "Allow Discord to write config in response to channel events/commands (default: true).",
+    "Allow Discord to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.discord.token":
     "Discord bot token used for gateway and REST API authentication for this provider account. Keep this secret out of committed config and rotate immediately after any leak.",
   "channels.discord.allowBots":
@@ -1444,17 +1444,17 @@ export const FIELD_HELP: Record<string, string> = {
   "channels.discord.proxy":
     "Proxy URL for Discord gateway + API requests (app-id lookup and allowlist resolution). Set per account via channels.discord.accounts.<id>.proxy.",
   "channels.whatsapp.configWrites":
-    "Allow WhatsApp to write config in response to channel events/commands (default: true).",
+    "Allow WhatsApp to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.signal.configWrites":
-    "Allow Signal to write config in response to channel events/commands (default: true).",
+    "Allow Signal to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.signal.account":
     "Signal account identifier (phone/number handle) used to bind this channel config to a specific Signal identity. Keep this aligned with your linked device/session state.",
   "channels.imessage.configWrites":
-    "Allow iMessage to write config in response to channel events/commands (default: true).",
+    "Allow iMessage to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.imessage.cliPath":
     "Filesystem path to the iMessage bridge CLI binary used for send/receive operations. Set explicitly when the binary is not on PATH in service runtime environments.",
   "channels.msteams.configWrites":
-    "Allow Microsoft Teams to write config in response to channel events/commands (default: true).",
+    "Allow Microsoft Teams to write config in response to channel events/commands (default: false). Must be explicitly set to true to enable; channel must also be pre-configured in openclaw.json.",
   "channels.modelByChannel":
     "Map provider -> channel id -> model override (values are provider/model or aliases).",
   ...IRC_FIELD_HELP,

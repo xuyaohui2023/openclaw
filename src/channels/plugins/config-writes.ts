@@ -44,12 +44,12 @@ export function resolveChannelConfigWrites(params: {
   const channels = params.cfg.channels as Record<string, ChannelConfigWithAccounts> | undefined;
   const channelConfig = channels?.[params.channelId];
   if (!channelConfig) {
-    return true;
+    return false;
   }
   const accountId = normalizeAccountId(params.accountId);
   const accountConfig = resolveAccountConfig(channelConfig.accounts, accountId);
   const value = accountConfig?.configWrites ?? channelConfig.configWrites;
-  return value !== false;
+  return value === true;
 }
 
 export function authorizeConfigWrite(params: {
