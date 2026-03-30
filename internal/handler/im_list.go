@@ -6,8 +6,8 @@ import (
 
 	"github.com/flashclaw/flashclaw-im-channel/internal/config"
 	"github.com/flashclaw/flashclaw-im-channel/internal/im"
+	"github.com/flashclaw/flashclaw-im-channel/internal/oclaw"
 )
-
 
 // IMHandler handles all methods on /api/v1/im.
 //
@@ -15,17 +15,17 @@ import (
 //   POST   /api/v1/im              — create or replace a channel config
 //   PATCH  /api/v1/im              — partial update a channel config
 //   DELETE /api/v1/im?channel=X    — delete a channel config
-func IMHandler(cfg *config.Config) http.HandlerFunc {
+func IMHandler(_ *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			imList(cfg, w, r)
+			imList(w)
 		case http.MethodPost:
-			imSave(cfg, w, r, false)
+			imSave(w, r, false)
 		case http.MethodPatch:
-			imSave(cfg, w, r, true)
+			imSave(w, r, true)
 		case http.MethodDelete:
-			imDelete(cfg, w, r)
+			imDelete(w, r)
 		default:
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
@@ -47,22 +47,27 @@ type imListResponse struct {
 	Line     imChannelEntry `json:"line"`
 }
 
-func imList(cfg *config.Config, w http.ResponseWriter, _ *http.Request) {
+// channelsConfig mirrors the shape of openclaw's channels section.
+type channelsConfig struct {
+	Telegram *im.TelegramConfig `json:"telegram"`
+	Slack    *im.SlackConfig    `json:"slack"`
+	Line     *im.LineConfig     `json:"line"`
+}
+
+// imList queries `openclaw config get channels` to build the response.
+func imList(w http.ResponseWriter) {
 	resp := imListResponse{}
 
-	if tg, err := im.GetTelegram(cfg.OpenclawConfigPath); err == nil {
-		if isTelegramBound(tg) {
-			resp.Telegram = imChannelEntry{Bound: true, Config: tg}
+	channels, err := oclaw.GetAs[channelsConfig]("channels")
+	if err == nil && channels != nil {
+		if channels.Telegram != nil && isTelegramBound(channels.Telegram) {
+			resp.Telegram = imChannelEntry{Bound: true, Config: channels.Telegram}
 		}
-	}
-	if sl, err := im.GetSlack(cfg.OpenclawConfigPath); err == nil {
-		if isSlackBound(sl) {
-			resp.Slack = imChannelEntry{Bound: true, Config: sl}
+		if channels.Slack != nil && isSlackBound(channels.Slack) {
+			resp.Slack = imChannelEntry{Bound: true, Config: channels.Slack}
 		}
-	}
-	if ln, err := im.GetLine(cfg.OpenclawConfigPath); err == nil {
-		if isLineBound(ln) {
-			resp.Line = imChannelEntry{Bound: true, Config: ln}
+		if channels.Line != nil && isLineBound(channels.Line) {
+			resp.Line = imChannelEntry{Bound: true, Config: channels.Line}
 		}
 	}
 
@@ -74,7 +79,6 @@ func isTelegramBound(c *im.TelegramConfig) bool {
 }
 
 func isSlackBound(c *im.SlackConfig) bool {
-	// Socket mode requires botToken + appToken; http mode requires botToken + signingSecret.
 	return c.BotToken != "" || c.AppToken != "" || c.SigningSecret != ""
 }
 
@@ -95,7 +99,7 @@ type imSaveRequest struct {
 }
 
 // imSave handles both POST (full replace) and PATCH (partial update).
-func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bool) {
+func imSave(w http.ResponseWriter, r *http.Request, patch bool) {
 	var req imSaveRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -118,12 +122,11 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusBadRequest, "invalid telegram config: "+err.Error())
 				return
 			}
-			updated, err := im.PatchTelegram(cfg.OpenclawConfigPath, p)
+			updated, err := patchTelegramViaCLI(p)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-	
 			writeJSON(w, http.StatusOK, updated)
 		} else {
 			var c im.TelegramConfig
@@ -144,14 +147,13 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.GroupPolicy == "" {
 				c.GroupPolicy = "open"
 			}
-			if err := im.SetTelegram(cfg.OpenclawConfigPath, c); err != nil {
+			if err := oclaw.Set("channels.telegram", c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 			if c.Enabled == nil || *c.Enabled {
-				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "telegram")
+				_ = oclaw.EnsureChannelEnabled("telegram")
 			}
-	
 			writeJSON(w, http.StatusOK, c)
 		}
 
@@ -166,12 +168,11 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusBadRequest, "invalid slack config: "+err.Error())
 				return
 			}
-			updated, err := im.PatchSlack(cfg.OpenclawConfigPath, p)
+			updated, err := patchSlackViaCLI(p)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-	
 			writeJSON(w, http.StatusOK, updated)
 		} else {
 			var c im.SlackConfig
@@ -192,14 +193,13 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.GroupPolicy == "" {
 				c.GroupPolicy = "open"
 			}
-			if err := im.SetSlack(cfg.OpenclawConfigPath, c); err != nil {
+			if err := oclaw.Set("channels.slack", c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 			if c.Enabled == nil || *c.Enabled {
-				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "slack")
+				_ = oclaw.EnsureChannelEnabled("slack")
 			}
-	
 			writeJSON(w, http.StatusOK, c)
 		}
 
@@ -214,12 +214,11 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusBadRequest, "invalid line config: "+err.Error())
 				return
 			}
-			updated, err := im.PatchLine(cfg.OpenclawConfigPath, p)
+			updated, err := patchLineViaCLI(p)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-	
 			writeJSON(w, http.StatusOK, updated)
 		} else {
 			var c im.LineConfig
@@ -240,14 +239,13 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.GroupPolicy == "" {
 				c.GroupPolicy = "open"
 			}
-			if err := im.SetLine(cfg.OpenclawConfigPath, c); err != nil {
+			if err := oclaw.Set("channels.line", c); err != nil {
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 			if c.Enabled == nil || *c.Enabled {
-				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "line")
+				_ = oclaw.EnsureChannelEnabled("line")
 			}
-	
 			writeJSON(w, http.StatusOK, c)
 		}
 
@@ -256,29 +254,412 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 	}
 }
 
+// patchTelegramViaCLI applies each non-nil field via individual `openclaw config set` calls,
+// then reads back the result. Patched fields are overlaid to restore values that
+// `config get` may redact (e.g. botToken → "***").
+func patchTelegramViaCLI(p im.PatchTelegramRequest) (*im.TelegramConfig, error) {
+	const base = "channels.telegram."
+	if p.Enabled != nil {
+		if err := oclaw.Set(base+"enabled", *p.Enabled); err != nil {
+			return nil, err
+		}
+	}
+	if p.BotToken != nil {
+		if err := oclaw.Set(base+"botToken", *p.BotToken); err != nil {
+			return nil, err
+		}
+	}
+	if p.TokenFile != nil {
+		if err := oclaw.Set(base+"tokenFile", *p.TokenFile); err != nil {
+			return nil, err
+		}
+	}
+	if p.DmPolicy != nil {
+		if err := oclaw.Set(base+"dmPolicy", *p.DmPolicy); err != nil {
+			return nil, err
+		}
+	}
+	if p.GroupPolicy != nil {
+		if err := oclaw.Set(base+"groupPolicy", *p.GroupPolicy); err != nil {
+			return nil, err
+		}
+	}
+	if p.AllowFrom != nil {
+		if err := oclaw.Set(base+"allowFrom", *p.AllowFrom); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookURL != nil {
+		if err := oclaw.Set(base+"webhookUrl", *p.WebhookURL); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookSecret != nil {
+		if err := oclaw.Set(base+"webhookSecret", *p.WebhookSecret); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookPath != nil {
+		if err := oclaw.Set(base+"webhookPath", *p.WebhookPath); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookHost != nil {
+		if err := oclaw.Set(base+"webhookHost", *p.WebhookHost); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookPort != nil {
+		if err := oclaw.Set(base+"webhookPort", *p.WebhookPort); err != nil {
+			return nil, err
+		}
+	}
+	if p.ConfigWrites != nil {
+		if err := oclaw.Set(base+"configWrites", *p.ConfigWrites); err != nil {
+			return nil, err
+		}
+	}
+
+	cur, err := oclaw.GetAs[im.TelegramConfig]("channels.telegram")
+	if err != nil || cur == nil {
+		cur = &im.TelegramConfig{}
+	}
+	// Re-apply patch values so the response reflects actual new values
+	// (config get redacts sensitive fields like botToken to "***").
+	if p.Enabled != nil {
+		cur.Enabled = p.Enabled
+	}
+	if p.BotToken != nil {
+		cur.BotToken = *p.BotToken
+	}
+	if p.TokenFile != nil {
+		cur.TokenFile = *p.TokenFile
+	}
+	if p.DmPolicy != nil {
+		cur.DmPolicy = *p.DmPolicy
+	}
+	if p.GroupPolicy != nil {
+		cur.GroupPolicy = *p.GroupPolicy
+	}
+	if p.AllowFrom != nil {
+		cur.AllowFrom = *p.AllowFrom
+	}
+	if p.WebhookURL != nil {
+		cur.WebhookURL = *p.WebhookURL
+	}
+	if p.WebhookSecret != nil {
+		cur.WebhookSecret = *p.WebhookSecret
+	}
+	if p.WebhookPath != nil {
+		cur.WebhookPath = *p.WebhookPath
+	}
+	if p.WebhookHost != nil {
+		cur.WebhookHost = *p.WebhookHost
+	}
+	if p.WebhookPort != nil {
+		cur.WebhookPort = p.WebhookPort
+	}
+	if p.ConfigWrites != nil {
+		cur.ConfigWrites = p.ConfigWrites
+	}
+	return cur, nil
+}
+
+// patchSlackViaCLI applies each non-nil field via individual `openclaw config set` calls,
+// then reads back the result with patched fields overlaid.
+func patchSlackViaCLI(p im.PatchSlackRequest) (*im.SlackConfig, error) {
+	const base = "channels.slack."
+	if p.Enabled != nil {
+		if err := oclaw.Set(base+"enabled", *p.Enabled); err != nil {
+			return nil, err
+		}
+	}
+	if p.Mode != nil {
+		if err := oclaw.Set(base+"mode", *p.Mode); err != nil {
+			return nil, err
+		}
+	}
+	if p.BotToken != nil {
+		if err := oclaw.Set(base+"botToken", *p.BotToken); err != nil {
+			return nil, err
+		}
+	}
+	if p.AppToken != nil {
+		if err := oclaw.Set(base+"appToken", *p.AppToken); err != nil {
+			return nil, err
+		}
+	}
+	if p.SigningSecret != nil {
+		if err := oclaw.Set(base+"signingSecret", *p.SigningSecret); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookPath != nil {
+		if err := oclaw.Set(base+"webhookPath", *p.WebhookPath); err != nil {
+			return nil, err
+		}
+	}
+	if p.UserToken != nil {
+		if err := oclaw.Set(base+"userToken", *p.UserToken); err != nil {
+			return nil, err
+		}
+	}
+	if p.UserTokenReadOnly != nil {
+		if err := oclaw.Set(base+"userTokenReadOnly", *p.UserTokenReadOnly); err != nil {
+			return nil, err
+		}
+	}
+	if p.DmPolicy != nil {
+		if err := oclaw.Set(base+"dmPolicy", *p.DmPolicy); err != nil {
+			return nil, err
+		}
+	}
+	if p.GroupPolicy != nil {
+		if err := oclaw.Set(base+"groupPolicy", *p.GroupPolicy); err != nil {
+			return nil, err
+		}
+	}
+	if p.AllowFrom != nil {
+		if err := oclaw.Set(base+"allowFrom", *p.AllowFrom); err != nil {
+			return nil, err
+		}
+	}
+	if p.DangerouslyAllowNameMatching != nil {
+		if err := oclaw.Set(base+"dangerouslyAllowNameMatching", *p.DangerouslyAllowNameMatching); err != nil {
+			return nil, err
+		}
+	}
+	if p.ReplyToMode != nil {
+		if err := oclaw.Set(base+"replyToMode", *p.ReplyToMode); err != nil {
+			return nil, err
+		}
+	}
+	if p.TextChunkLimit != nil {
+		if err := oclaw.Set(base+"textChunkLimit", *p.TextChunkLimit); err != nil {
+			return nil, err
+		}
+	}
+	if p.ChunkMode != nil {
+		if err := oclaw.Set(base+"chunkMode", *p.ChunkMode); err != nil {
+			return nil, err
+		}
+	}
+	if p.MediaMaxMb != nil {
+		if err := oclaw.Set(base+"mediaMaxMb", *p.MediaMaxMb); err != nil {
+			return nil, err
+		}
+	}
+	if p.AckReaction != nil {
+		if err := oclaw.Set(base+"ackReaction", *p.AckReaction); err != nil {
+			return nil, err
+		}
+	}
+	if p.TypingReaction != nil {
+		if err := oclaw.Set(base+"typingReaction", *p.TypingReaction); err != nil {
+			return nil, err
+		}
+	}
+	if p.Streaming != nil {
+		if err := oclaw.Set(base+"streaming", *p.Streaming); err != nil {
+			return nil, err
+		}
+	}
+	if p.NativeStreaming != nil {
+		if err := oclaw.Set(base+"nativeStreaming", *p.NativeStreaming); err != nil {
+			return nil, err
+		}
+	}
+	if p.ConfigWrites != nil {
+		if err := oclaw.Set(base+"configWrites", *p.ConfigWrites); err != nil {
+			return nil, err
+		}
+	}
+
+	cur, err := oclaw.GetAs[im.SlackConfig]("channels.slack")
+	if err != nil || cur == nil {
+		cur = &im.SlackConfig{}
+	}
+	if p.Enabled != nil {
+		cur.Enabled = p.Enabled
+	}
+	if p.Mode != nil {
+		cur.Mode = *p.Mode
+	}
+	if p.BotToken != nil {
+		cur.BotToken = *p.BotToken
+	}
+	if p.AppToken != nil {
+		cur.AppToken = *p.AppToken
+	}
+	if p.SigningSecret != nil {
+		cur.SigningSecret = *p.SigningSecret
+	}
+	if p.WebhookPath != nil {
+		cur.WebhookPath = *p.WebhookPath
+	}
+	if p.UserToken != nil {
+		cur.UserToken = *p.UserToken
+	}
+	if p.UserTokenReadOnly != nil {
+		cur.UserTokenReadOnly = p.UserTokenReadOnly
+	}
+	if p.DmPolicy != nil {
+		cur.DmPolicy = *p.DmPolicy
+	}
+	if p.GroupPolicy != nil {
+		cur.GroupPolicy = *p.GroupPolicy
+	}
+	if p.AllowFrom != nil {
+		cur.AllowFrom = *p.AllowFrom
+	}
+	if p.DangerouslyAllowNameMatching != nil {
+		cur.DangerouslyAllowNameMatching = p.DangerouslyAllowNameMatching
+	}
+	if p.ReplyToMode != nil {
+		cur.ReplyToMode = *p.ReplyToMode
+	}
+	if p.TextChunkLimit != nil {
+		cur.TextChunkLimit = p.TextChunkLimit
+	}
+	if p.ChunkMode != nil {
+		cur.ChunkMode = *p.ChunkMode
+	}
+	if p.MediaMaxMb != nil {
+		cur.MediaMaxMb = p.MediaMaxMb
+	}
+	if p.AckReaction != nil {
+		cur.AckReaction = *p.AckReaction
+	}
+	if p.TypingReaction != nil {
+		cur.TypingReaction = *p.TypingReaction
+	}
+	if p.Streaming != nil {
+		cur.Streaming = *p.Streaming
+	}
+	if p.NativeStreaming != nil {
+		cur.NativeStreaming = p.NativeStreaming
+	}
+	if p.ConfigWrites != nil {
+		cur.ConfigWrites = p.ConfigWrites
+	}
+	return cur, nil
+}
+
+// patchLineViaCLI applies each non-nil field via individual `openclaw config set` calls,
+// then reads back the result with patched fields overlaid.
+func patchLineViaCLI(p im.PatchLineRequest) (*im.LineConfig, error) {
+	const base = "channels.line."
+	if p.Enabled != nil {
+		if err := oclaw.Set(base+"enabled", *p.Enabled); err != nil {
+			return nil, err
+		}
+	}
+	if p.ChannelAccessToken != nil {
+		if err := oclaw.Set(base+"channelAccessToken", *p.ChannelAccessToken); err != nil {
+			return nil, err
+		}
+	}
+	if p.ChannelSecret != nil {
+		if err := oclaw.Set(base+"channelSecret", *p.ChannelSecret); err != nil {
+			return nil, err
+		}
+	}
+	if p.TokenFile != nil {
+		if err := oclaw.Set(base+"tokenFile", *p.TokenFile); err != nil {
+			return nil, err
+		}
+	}
+	if p.SecretFile != nil {
+		if err := oclaw.Set(base+"secretFile", *p.SecretFile); err != nil {
+			return nil, err
+		}
+	}
+	if p.WebhookPath != nil {
+		if err := oclaw.Set(base+"webhookPath", *p.WebhookPath); err != nil {
+			return nil, err
+		}
+	}
+	if p.DmPolicy != nil {
+		if err := oclaw.Set(base+"dmPolicy", *p.DmPolicy); err != nil {
+			return nil, err
+		}
+	}
+	if p.AllowFrom != nil {
+		if err := oclaw.Set(base+"allowFrom", *p.AllowFrom); err != nil {
+			return nil, err
+		}
+	}
+	if p.GroupPolicy != nil {
+		if err := oclaw.Set(base+"groupPolicy", *p.GroupPolicy); err != nil {
+			return nil, err
+		}
+	}
+	if p.GroupAllowFrom != nil {
+		if err := oclaw.Set(base+"groupAllowFrom", *p.GroupAllowFrom); err != nil {
+			return nil, err
+		}
+	}
+
+	cur, err := oclaw.GetAs[im.LineConfig]("channels.line")
+	if err != nil || cur == nil {
+		cur = &im.LineConfig{}
+	}
+	if p.Enabled != nil {
+		cur.Enabled = p.Enabled
+	}
+	if p.ChannelAccessToken != nil {
+		cur.ChannelAccessToken = *p.ChannelAccessToken
+	}
+	if p.ChannelSecret != nil {
+		cur.ChannelSecret = *p.ChannelSecret
+	}
+	if p.TokenFile != nil {
+		cur.TokenFile = *p.TokenFile
+	}
+	if p.SecretFile != nil {
+		cur.SecretFile = *p.SecretFile
+	}
+	if p.WebhookPath != nil {
+		cur.WebhookPath = *p.WebhookPath
+	}
+	if p.DmPolicy != nil {
+		cur.DmPolicy = *p.DmPolicy
+	}
+	if p.AllowFrom != nil {
+		cur.AllowFrom = *p.AllowFrom
+	}
+	if p.GroupPolicy != nil {
+		cur.GroupPolicy = *p.GroupPolicy
+	}
+	if p.GroupAllowFrom != nil {
+		cur.GroupAllowFrom = *p.GroupAllowFrom
+	}
+	return cur, nil
+}
+
 // --- DELETE ---
 
-func imDelete(cfg *config.Config, w http.ResponseWriter, r *http.Request) {
+func imDelete(w http.ResponseWriter, r *http.Request) {
 	channel := r.URL.Query().Get("channel")
 	if channel == "" {
 		writeError(w, http.StatusBadRequest, "query param 'channel' is required (telegram | slack | line)")
 		return
 	}
 
-	var err error
+	var path string
 	switch channel {
 	case "telegram":
-		err = im.DeleteTelegram(cfg.OpenclawConfigPath)
+		path = "channels.telegram"
 	case "slack":
-		err = im.DeleteSlack(cfg.OpenclawConfigPath)
+		path = "channels.slack"
 	case "line":
-		err = im.DeleteLine(cfg.OpenclawConfigPath)
+		path = "channels.line"
 	default:
 		writeError(w, http.StatusBadRequest, "unknown channel: "+channel+"; must be telegram | slack | line")
 		return
 	}
 
-	if err != nil {
+	if err := oclaw.Unset(path); err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
