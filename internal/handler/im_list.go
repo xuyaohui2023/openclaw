@@ -8,6 +8,7 @@ import (
 	"github.com/flashclaw/flashclaw-im-channel/internal/im"
 )
 
+
 // IMHandler handles all methods on /api/v1/im.
 //
 //   GET    /api/v1/im              — list all channels with current config
@@ -122,7 +123,7 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			notifyReload(cfg)
+	
 			writeJSON(w, http.StatusOK, updated)
 		} else {
 			var c im.TelegramConfig
@@ -150,7 +151,7 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.Enabled == nil || *c.Enabled {
 				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "telegram")
 			}
-			notifyReload(cfg)
+	
 			writeJSON(w, http.StatusOK, c)
 		}
 
@@ -170,7 +171,7 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			notifyReload(cfg)
+	
 			writeJSON(w, http.StatusOK, updated)
 		} else {
 			var c im.SlackConfig
@@ -198,7 +199,7 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.Enabled == nil || *c.Enabled {
 				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "slack")
 			}
-			notifyReload(cfg)
+	
 			writeJSON(w, http.StatusOK, c)
 		}
 
@@ -218,7 +219,7 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 				writeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			notifyReload(cfg)
+	
 			writeJSON(w, http.StatusOK, updated)
 		} else {
 			var c im.LineConfig
@@ -246,7 +247,7 @@ func imSave(cfg *config.Config, w http.ResponseWriter, r *http.Request, patch bo
 			if c.Enabled == nil || *c.Enabled {
 				_ = im.EnsureChannelInPlugins(cfg.OpenclawConfigPath, "line")
 			}
-			notifyReload(cfg)
+	
 			writeJSON(w, http.StatusOK, c)
 		}
 
@@ -281,6 +282,5 @@ func imDelete(cfg *config.Config, w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	notifyReload(cfg)
 	w.WriteHeader(http.StatusNoContent)
 }

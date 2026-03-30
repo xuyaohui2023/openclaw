@@ -1,7 +1,0 @@
-{
-  "bind": "127.0.0.1",
-  "port": 18790,
-  "apiKey": "test_2bad74bcf5a4457bb4d38261f2b01e8c",
-  "openclawConfigPath": "",
-  "openclawPidFile": ""
-}

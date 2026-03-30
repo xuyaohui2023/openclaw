@@ -25,16 +25,6 @@ type Config struct {
 	// Path to openclaw.json config file.
 	// Default: $OPENCLAW_STATE_DIR/openclaw.json or ~/.openclaw/openclaw.json
 	OpenclawConfigPath string
-
-	// Optional: PID of the running openclaw process.
-	// If set, SIGUSR1 is sent after writing config.
-	OpenclawPID int
-
-	// Optional: path to openclaw's PID file (e.g. ~/.openclaw/openclaw.pid).
-	// When OpenclawPID is 0, the service reads this file at reload time to
-	// discover the PID automatically — no manual PID tracking needed.
-	// Defaults to <openclaw.json directory>/openclaw.pid.
-	OpenclawPIDFile string
 }
 
 // fileConfig is the JSON structure for environment-specific config files
@@ -47,8 +37,6 @@ type fileConfig struct {
 	Port               int    `json:"port"`
 	APIKey             string `json:"apiKey"`
 	OpenclawConfigPath string `json:"openclawConfigPath"`
-	OpenclawPID        int    `json:"openclawPid"`
-	OpenclawPIDFile    string `json:"openclawPidFile"`
 }
 
 // Load reads configuration with the following precedence (highest → lowest):
@@ -94,22 +82,6 @@ func Load() (*Config, error) {
 		cfg.OpenclawConfigPath = resolveOpenclawConfigPath()
 	}
 
-	if raw := os.Getenv("OPENCLAW_PID"); raw != "" {
-		pid, err := strconv.Atoi(strings.TrimSpace(raw))
-		if err != nil || pid <= 0 {
-			return nil, errors.New("OPENCLAW_PID must be a positive integer when set")
-		}
-		cfg.OpenclawPID = pid
-	}
-
-	if v := strings.TrimSpace(os.Getenv("OPENCLAW_PID_FILE")); v != "" {
-		cfg.OpenclawPIDFile = v
-	}
-	// Default PID file: same directory as openclaw.json, named openclaw.pid.
-	if cfg.OpenclawPIDFile == "" {
-		cfg.OpenclawPIDFile = filepath.Join(filepath.Dir(cfg.OpenclawConfigPath), "openclaw.pid")
-	}
-
 	return cfg, nil
 }
 
@@ -143,12 +115,6 @@ func loadFromFile(cfg *Config, env string) error {
 	}
 	if fc.OpenclawConfigPath != "" {
 		cfg.OpenclawConfigPath = fc.OpenclawConfigPath
-	}
-	if fc.OpenclawPID > 0 {
-		cfg.OpenclawPID = fc.OpenclawPID
-	}
-	if fc.OpenclawPIDFile != "" {
-		cfg.OpenclawPIDFile = fc.OpenclawPIDFile
 	}
 
 	return nil

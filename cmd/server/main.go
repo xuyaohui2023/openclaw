@@ -64,11 +64,6 @@ func main() {
 
 	log.Printf("flashclaw-im-channel env=%s listening on %s", cfg.Env, addr)
 	log.Printf("openclaw config: %s", cfg.OpenclawConfigPath)
-	if cfg.OpenclawPID > 0 {
-		log.Printf("openclaw reload: SIGUSR1 → PID %d", cfg.OpenclawPID)
-	} else {
-		log.Printf("openclaw reload: SIGUSR1 via PID file %s", cfg.OpenclawPIDFile)
-	}
 
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("listen: %v", err)
