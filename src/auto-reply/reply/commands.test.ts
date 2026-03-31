@@ -747,7 +747,7 @@ describe("handleCommands /config configWrites gating", () => {
     params.command.senderIsOwner = true;
     const result = await handleCommands(params);
     expect(result.shouldContinue).toBe(false);
-    expect(result.reply?.text).toContain("Config writes are disabled");
+    expect(result.reply?.text).toContain("openclaw.json cannot be modified via chat");
   });
 
   it("blocks /config set when the target account disables writes", async () => {
@@ -775,7 +775,7 @@ describe("handleCommands /config configWrites gating", () => {
     params.command.senderIsOwner = true;
     const result = await handleCommands(params);
     expect(result.shouldContinue).toBe(false);
-    expect(result.reply?.text).toContain("channels.telegram.accounts.work.configWrites=true");
+    expect(result.reply?.text).toContain("openclaw.json cannot be modified via chat");
     expect(writeConfigFileMock.mock.calls.length).toBe(previousWriteCount);
   });
 
@@ -1115,7 +1115,7 @@ describe("handleCommands /allowlist", () => {
     const result = await handleCommands(params);
 
     expect(result.shouldContinue).toBe(false);
-    expect(result.reply?.text).toContain("channels.telegram.accounts.work.configWrites=true");
+    expect(result.reply?.text).toContain("openclaw.json cannot be modified via chat");
     expect(writeConfigFileMock.mock.calls.length).toBe(previousWriteCount);
   });
 

@@ -64,6 +64,13 @@ export function authorizeConfigWrite(params: {
   if (params.target?.kind === "ambiguous") {
     return { allowed: false, reason: "ambiguous-target" };
   }
+  if (params.origin && !params.origin.channelId) {
+    return {
+      allowed: false,
+      reason: "origin-disabled",
+      blockedScope: { kind: "origin", scope: params.origin },
+    };
+  }
   if (
     params.origin?.channelId &&
     !resolveChannelConfigWrites({
@@ -162,14 +169,7 @@ export function formatConfigWriteDeniedMessage(params: {
 
   const blocked = params.result.blockedScope?.scope;
   const channelLabel = blocked?.channelId ?? params.fallbackChannelId ?? "this channel";
-  const hint = blocked?.channelId
-    ? blocked.accountId
-      ? `channels.${blocked.channelId}.accounts.${blocked.accountId}.configWrites=true`
-      : `channels.${blocked.channelId}.configWrites=true`
-    : params.fallbackChannelId
-      ? `channels.${params.fallbackChannelId}.configWrites=true`
-      : "channels.<channel>.configWrites=true";
-  return `⚠️ Config writes are disabled for ${channelLabel}. Set ${hint} to enable.`;
+  return `⚠️ openclaw.json cannot be modified via chat for ${channelLabel}. Config writes are disabled by the administrator.`;
 }
 
 function listConfigWriteTargetScopes(target?: ConfigWriteTarget): ConfigWriteScope[] {

@@ -507,7 +507,7 @@ describe("authorizeConfigWrite", () => {
           blockedScope: { kind: "target", scope: { channelId: "slack", accountId: "work" } },
         },
       }),
-    ).toContain("channels.slack.accounts.work.configWrites=true");
+    ).toContain("openclaw.json cannot be modified via chat");
   });
 });
 
