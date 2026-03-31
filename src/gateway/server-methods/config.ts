@@ -329,6 +329,17 @@ export const configHandlers: GatewayRequestHandlers = {
     if (!assertValidParams(params, validateConfigSetParams, "config.set", respond)) {
       return;
     }
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     const { snapshot, writeOptions } = await readConfigFileSnapshotForWrite();
     if (!requireConfigBaseHash(params, snapshot, respond)) {
       return;
@@ -352,6 +363,17 @@ export const configHandlers: GatewayRequestHandlers = {
     if (!assertValidParams(params, validateConfigPatchParams, "config.patch", respond)) {
       return;
     }
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     const { snapshot, writeOptions } = await readConfigFileSnapshotForWrite();
     if (!requireConfigBaseHash(params, snapshot, respond)) {
       return;
@@ -474,6 +496,17 @@ export const configHandlers: GatewayRequestHandlers = {
     if (!assertValidParams(params, validateConfigApplyParams, "config.apply", respond)) {
       return;
     }
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     const { snapshot, writeOptions } = await readConfigFileSnapshotForWrite();
     if (!requireConfigBaseHash(params, snapshot, respond)) {
       return;
