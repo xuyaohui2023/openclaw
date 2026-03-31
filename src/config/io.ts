@@ -1505,14 +1505,6 @@ export async function readConfigFileSnapshotForWrite(): Promise<ReadConfigFileSn
 }
 
 export async function writeConfigFile(
-  _cfg: OpenClawConfig,
-  _options: ConfigWriteOptions = {},
-): Promise<void> {
-  throw new Error("Config writes are disabled: openclaw.json is read-only in this deployment.");
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function writeConfigFileOriginal(
   cfg: OpenClawConfig,
   options: ConfigWriteOptions = {},
 ): Promise<void> {

@@ -1,11 +1,8 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import {
   abortEmbeddedPiRun,
   getActiveEmbeddedRunCount,
   waitForActiveEmbeddedRuns,
 } from "../../agents/pi-embedded-runner/runs.js";
-import { resolveConfigPath } from "../../config/paths.js";
 import type { startGatewayServer } from "../../gateway/server.js";
 import { acquireGatewayLock } from "../../infra/gateway-lock.js";
 import { restartGatewayProcessWithFreshPid } from "../../infra/process-respawn.js";
@@ -37,9 +34,6 @@ export async function runGatewayLoop(params: {
   let server: Awaited<ReturnType<typeof startGatewayServer>> | null = null;
   let shuttingDown = false;
   let restartResolver: (() => void) | null = null;
-
-  const pidFile = path.join(path.dirname(resolveConfigPath()), "openclaw.pid");
-  await fs.writeFile(pidFile, String(process.pid), "utf8").catch(() => {});
 
   const cleanupSignals = () => {
     process.removeListener("SIGTERM", onSigterm);
@@ -252,7 +246,6 @@ export async function runGatewayLoop(params: {
       });
     }
   } finally {
-    await fs.rm(pidFile, { force: true }).catch(() => {});
     await releaseLockIfHeld();
     cleanupSignals();
   }

@@ -1,5 +1,4 @@
 import { exec } from "node:child_process";
-import { isDeepStrictEqual } from "node:util";
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
 import { listChannelPlugins } from "../../channels/plugins/index.js";
 import {
@@ -58,48 +57,6 @@ import type { GatewayRequestHandlers, RespondFn } from "./types.js";
 import { assertValidParams } from "./validation.js";
 
 const MAX_CONFIG_ISSUES_IN_ERROR_MESSAGE = 3;
-
-// IM channel root paths that webchat clients must not modify.
-const WEBCHAT_BLOCKED_IM_PATHS = [
-  "channels.telegram",
-  "channels.slack",
-  "channels.line",
-] as const;
-
-/**
- * Returns the first blocked IM channel path whose value differs between
- * prevConfig and nextConfig, or null if none changed.
- *
- * Uses deep equality on each channel's config object so that transitions
- * from undefined (non-existent channel) to an object are reliably detected,
- * whereas diffConfigPaths() would only report the parent "channels" key in
- * that case.
- */
-function findBlockedImChannelChange(
-  prevConfig: unknown,
-  nextConfig: unknown,
-): string | null {
-  const getChannels = (cfg: unknown): Record<string, unknown> => {
-    if (cfg && typeof cfg === "object" && !Array.isArray(cfg)) {
-      const channels = (cfg as Record<string, unknown>).channels;
-      if (channels && typeof channels === "object" && !Array.isArray(channels)) {
-        return channels as Record<string, unknown>;
-      }
-    }
-    return {};
-  };
-
-  const prevCh = getChannels(prevConfig);
-  const nextCh = getChannels(nextConfig);
-
-  for (const blockedPath of WEBCHAT_BLOCKED_IM_PATHS) {
-    const key = blockedPath.slice("channels.".length);
-    if (!isDeepStrictEqual(prevCh[key], nextCh[key])) {
-      return blockedPath;
-    }
-  }
-  return null;
-}
 
 function requireConfigBaseHash(
   params: unknown,
@@ -368,7 +325,7 @@ export const configHandlers: GatewayRequestHandlers = {
     }
     respond(true, result, undefined);
   },
-  "config.set": async ({ params, respond, client, isWebchatConnect }) => {
+  "config.set": async ({ params, respond }) => {
     if (!assertValidParams(params, validateConfigSetParams, "config.set", respond)) {
       return;
     }
@@ -379,20 +336,6 @@ export const configHandlers: GatewayRequestHandlers = {
     const parsed = parseValidateConfigFromRawOrRespond(params, "config.set", snapshot, respond);
     if (!parsed) {
       return;
-    }
-    if (isWebchatConnect(client?.connect)) {
-      const blocked = findBlockedImChannelChange(snapshot.config, parsed.config);
-      if (blocked) {
-        respond(
-          false,
-          undefined,
-          errorShape(
-            ErrorCodes.INVALID_REQUEST,
-            `webchat clients cannot modify IM channel config (${blocked})`,
-          ),
-        );
-        return;
-      }
     }
     await writeConfigFile(parsed.config, writeOptions);
     respond(
@@ -480,20 +423,6 @@ export const configHandlers: GatewayRequestHandlers = {
       return;
     }
     const changedPaths = diffConfigPaths(snapshot.config, validated.config);
-    if (isWebchatConnect(client?.connect)) {
-      const blocked = findBlockedImChannelChange(snapshot.config, validated.config);
-      if (blocked) {
-        respond(
-          false,
-          undefined,
-          errorShape(
-            ErrorCodes.INVALID_REQUEST,
-            `webchat clients cannot modify IM channel config (${blocked})`,
-          ),
-        );
-        return;
-      }
-    }
     const actor = resolveControlPlaneActor(client);
     context?.logGateway?.info(
       `config.patch write ${formatControlPlaneActor(actor)} changedPaths=${summarizeChangedPaths(changedPaths)} restartReason=config.patch`,
@@ -554,20 +483,6 @@ export const configHandlers: GatewayRequestHandlers = {
       return;
     }
     const changedPaths = diffConfigPaths(snapshot.config, parsed.config);
-    if (isWebchatConnect(client?.connect)) {
-      const blocked = findBlockedImChannelChange(snapshot.config, parsed.config);
-      if (blocked) {
-        respond(
-          false,
-          undefined,
-          errorShape(
-            ErrorCodes.INVALID_REQUEST,
-            `webchat clients cannot modify IM channel config (${blocked})`,
-          ),
-        );
-        return;
-      }
-    }
     const actor = resolveControlPlaneActor(client);
     context?.logGateway?.info(
       `config.apply write ${formatControlPlaneActor(actor)} changedPaths=${summarizeChangedPaths(changedPaths)} restartReason=config.apply`,
