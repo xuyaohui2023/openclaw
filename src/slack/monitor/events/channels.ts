@@ -1,9 +1,6 @@
 import type { SlackEventMiddlewareArgs } from "@slack/bolt";
-import { resolveChannelConfigWrites } from "../../../channels/plugins/config-writes.js";
-import { loadConfig, writeConfigFile } from "../../../config/config.js";
 import { danger, warn } from "../../../globals.js";
 import { enqueueSystemEvent } from "../../../infra/system-events.js";
-import { migrateSlackChannelConfig } from "../../channel-migration.js";
 import { resolveSlackChannelLabel } from "../channel-config.js";
 import type { SlackMonitorContext } from "../context.js";
 import type {
@@ -111,49 +108,13 @@ export function registerSlackChannelEvents(params: {
           warn(`[slack] Channel ID changed: ${oldChannelId} → ${newChannelId} (${label})`),
         );
 
-        if (
-          !resolveChannelConfigWrites({
-            cfg: ctx.cfg,
-            channelId: "slack",
-            accountId: ctx.accountId,
-          })
-        ) {
-          ctx.runtime.log?.(
-            warn("[slack] Config writes disabled; skipping channel config migration."),
-          );
-          return;
-        }
-
-        const currentConfig = loadConfig();
-        const migration = migrateSlackChannelConfig({
-          cfg: currentConfig,
-          accountId: ctx.accountId,
-          oldChannelId,
-          newChannelId,
-        });
-
-        if (migration.migrated) {
-          migrateSlackChannelConfig({
-            cfg: ctx.cfg,
-            accountId: ctx.accountId,
-            oldChannelId,
-            newChannelId,
-          });
-          await writeConfigFile(currentConfig);
-          ctx.runtime.log?.(warn("[slack] Channel config migrated and saved successfully."));
-        } else if (migration.skippedExisting) {
-          ctx.runtime.log?.(
-            warn(
-              `[slack] Channel config already exists for ${newChannelId}; leaving ${oldChannelId} unchanged`,
-            ),
-          );
-        } else {
-          ctx.runtime.log?.(
-            warn(
-              `[slack] No config found for old channel ID ${oldChannelId}; migration logged only`,
-            ),
-          );
-        }
+        // Config writes to openclaw.json are exclusively managed by flashclaw-im-channel.
+        // Auto-migration is disabled; update channel config via flashclaw-im-channel if needed.
+        ctx.runtime.log?.(
+          warn(
+            `[slack] Channel ID changed ${oldChannelId} → ${newChannelId} but config auto-migration is disabled. Update via flashclaw-im-channel.`,
+          ),
+        );
       } catch (err) {
         ctx.runtime.error?.(danger(`slack channel_id_changed handler failed: ${String(err)}`));
       }

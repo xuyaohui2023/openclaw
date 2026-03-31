@@ -1,5 +1,4 @@
 import type { OpenClawConfig } from "../config/config.js";
-import { readConfigFileSnapshotForWrite, writeConfigFile } from "../config/config.js";
 import { loadCronStore, resolveCronStorePath, saveCronStore } from "../cron/store.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import {
@@ -148,24 +147,12 @@ export async function maybePersistResolvedTelegramTarget(params: {
   }
   const { matchKey, resolvedTarget } = rewrite;
 
-  try {
-    const { snapshot, writeOptions } = await readConfigFileSnapshotForWrite();
-    const nextConfig = structuredClone(snapshot.config ?? {});
-    const configChanged = replaceTelegramDefaultToTargets({
-      cfg: nextConfig,
-      matchKey,
-      resolvedTarget,
-    });
-    if (configChanged) {
-      await writeConfigFile(nextConfig, writeOptions);
-      if (params.verbose) {
-        writebackLogger.warn(`resolved Telegram defaultTo target ${raw} -> ${resolvedTarget}`);
-      }
-    }
-  } catch (err) {
-    if (params.verbose) {
-      writebackLogger.warn(`failed to persist Telegram defaultTo target ${raw}: ${String(err)}`);
-    }
+  // Config writes to openclaw.json are exclusively managed by flashclaw-im-channel.
+  // Automatic target writeback is disabled.
+  if (params.verbose) {
+    writebackLogger.warn(
+      `resolved Telegram defaultTo target ${raw} -> ${resolvedTarget} (writeback disabled; manage via flashclaw-im-channel)`,
+    );
   }
 
   try {

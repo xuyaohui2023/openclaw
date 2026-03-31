@@ -14,9 +14,7 @@ import { resolveStoredModelOverride } from "../auto-reply/reply/model-selection.
 import { listSkillCommandsForAgents } from "../auto-reply/skill-commands.js";
 import { buildCommandsMessagePaginated } from "../auto-reply/status.js";
 import { shouldDebounceTextInbound } from "../channels/inbound-debounce-policy.js";
-import { resolveChannelConfigWrites } from "../channels/plugins/config-writes.js";
 import { loadConfig } from "../config/config.js";
-import { writeConfigFile } from "../config/io.js";
 import {
   loadSessionStore,
   resolveSessionStoreEntry,
@@ -69,7 +67,6 @@ import {
   evaluateTelegramGroupBaseAccess,
   evaluateTelegramGroupPolicyAccess,
 } from "./group-access.js";
-import { migrateTelegramGroupConfig } from "./group-migration.js";
 import { resolveTelegramInlineButtonsScope } from "./inline-buttons.js";
 import {
   buildModelsKeyboard,
@@ -1468,36 +1465,13 @@ export const registerTelegramHandlers = ({
 
       runtime.log?.(warn(`[telegram] Group migrated: "${chatTitle}" ${oldChatId} → ${newChatId}`));
 
-      if (!resolveChannelConfigWrites({ cfg, channelId: "telegram", accountId })) {
-        runtime.log?.(warn("[telegram] Config writes disabled; skipping group config migration."));
-        return;
-      }
-
-      // Check if old chat ID has config and migrate it
-      const currentConfig = loadConfig();
-      const migration = migrateTelegramGroupConfig({
-        cfg: currentConfig,
-        accountId,
-        oldChatId,
-        newChatId,
-      });
-
-      if (migration.migrated) {
-        runtime.log?.(warn(`[telegram] Migrating group config from ${oldChatId} to ${newChatId}`));
-        migrateTelegramGroupConfig({ cfg, accountId, oldChatId, newChatId });
-        await writeConfigFile(currentConfig);
-        runtime.log?.(warn(`[telegram] Group config migrated and saved successfully`));
-      } else if (migration.skippedExisting) {
-        runtime.log?.(
-          warn(
-            `[telegram] Group config already exists for ${newChatId}; leaving ${oldChatId} unchanged`,
-          ),
-        );
-      } else {
-        runtime.log?.(
-          warn(`[telegram] No config found for old group ID ${oldChatId}, migration logged only`),
-        );
-      }
+      // Config writes to openclaw.json are exclusively managed by flashclaw-im-channel.
+      // Auto-migration is disabled; update channel config via flashclaw-im-channel if needed.
+      runtime.log?.(
+        warn(
+          `[telegram] Group config auto-migration is disabled. Update via flashclaw-im-channel if needed (${oldChatId} → ${newChatId}).`,
+        ),
+      );
     } catch (err) {
       runtime.error?.(danger(`[telegram] Group migration handler failed: ${String(err)}`));
     }
