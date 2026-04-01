@@ -521,6 +521,17 @@ export const agentsHandlers: GatewayRequestHandlers = {
     const agentDir = resolveAgentDir(nextConfig, agentId);
     nextConfig = applyAgentConfig(nextConfig, { agentId, agentDir });
 
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     // Ensure workspace & transcripts exist BEFORE writing config so a failure
     // here does not leave a broken config entry behind.
     const skipBootstrap = Boolean(nextConfig.agents?.defaults?.skipBootstrap);
@@ -575,6 +586,17 @@ export const agentsHandlers: GatewayRequestHandlers = {
       ...(model ? { model } : {}),
     });
 
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     await writeConfigFile(nextConfig);
 
     if (workspaceDir) {
@@ -618,6 +640,17 @@ export const agentsHandlers: GatewayRequestHandlers = {
     const sessionsDir = resolveSessionTranscriptsDirForAgent(agentId);
 
     const result = pruneAgentConfig(cfg, agentId);
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     await writeConfigFile(result.config);
 
     if (deleteFiles) {

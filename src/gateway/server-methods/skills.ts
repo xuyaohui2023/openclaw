@@ -198,6 +198,17 @@ export const skillsHandlers: GatewayRequestHandlers = {
       ...cfg,
       skills,
     };
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     await writeConfigFile(nextConfig);
     respond(true, { ok: true, skillKey: p.skillKey, config: current }, undefined);
   },

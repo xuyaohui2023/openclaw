@@ -7,6 +7,7 @@ import { openBoundaryFile, type BoundaryFileOpenResult } from "../infra/boundary
 import { writeFileWithinRoot } from "../infra/fs-safe.js";
 import { PATH_ALIAS_POLICIES, type PathAliasPolicy } from "../infra/path-alias-guards.js";
 import { applyUpdateHunk } from "./apply-patch-update.js";
+import { resolveConfigPath } from "../config/paths.js";
 import { toRelativeSandboxPath, resolvePathFromInput } from "./path-policy.js";
 import { assertSandboxPath } from "./sandbox-paths.js";
 import type { SandboxFsBridge } from "./sandbox/fs-bridge.js";
@@ -259,6 +260,13 @@ function resolvePatchFileOps(options: ApplyPatchOptions): PatchFileOps {
     },
     writeFile: async (filePath, content) => {
       if (!workspaceOnly) {
+        const resolved = path.resolve(filePath);
+        const configFilePath = path.resolve(resolveConfigPath(process.env));
+        if (resolved === configFilePath) {
+          throw new Error(
+            "openclaw.json cannot be modified by the AI agent. Manage configuration via flashclaw-im-channel.",
+          );
+        }
         await fs.writeFile(filePath, content, "utf8");
         return;
       }
