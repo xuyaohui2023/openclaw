@@ -1,7 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import { isRestartEnabled } from "../../config/commands.js";
 import type { OpenClawConfig } from "../../config/config.js";
-import { resolveConfigSnapshotHash } from "../../config/io.js";
 import { extractDeliveryInfo } from "../../config/sessions.js";
 import {
   formatDoctorNonInteractiveHint,
@@ -18,25 +17,10 @@ const log = createSubsystemLogger("gateway-tool");
 
 const DEFAULT_UPDATE_TIMEOUT_MS = 20 * 60_000;
 
-function resolveBaseHashFromSnapshot(snapshot: unknown): string | undefined {
-  if (!snapshot || typeof snapshot !== "object") {
-    return undefined;
-  }
-  const hashValue = (snapshot as { hash?: unknown }).hash;
-  const rawValue = (snapshot as { raw?: unknown }).raw;
-  const hash = resolveConfigSnapshotHash({
-    hash: typeof hashValue === "string" ? hashValue : undefined,
-    raw: typeof rawValue === "string" ? rawValue : undefined,
-  });
-  return hash ?? undefined;
-}
-
 const GATEWAY_ACTIONS = [
   "restart",
   "config.get",
   "config.schema.lookup",
-  "config.apply",
-  "config.patch",
   "update.run",
 ] as const;
 
@@ -48,16 +32,13 @@ const GatewayToolSchema = Type.Object({
   // restart
   delayMs: Type.Optional(Type.Number()),
   reason: Type.Optional(Type.String()),
-  // config.get, config.schema.lookup, config.apply, update.run
+  // config.get, config.schema.lookup, update.run
   gatewayUrl: Type.Optional(Type.String()),
   gatewayToken: Type.Optional(Type.String()),
   timeoutMs: Type.Optional(Type.Number()),
   // config.schema.lookup
   path: Type.Optional(Type.String()),
-  // config.apply, config.patch
-  raw: Type.Optional(Type.String()),
-  baseHash: Type.Optional(Type.String()),
-  // config.apply, config.patch, update.run
+  // update.run
   sessionKey: Type.Optional(Type.String()),
   note: Type.Optional(Type.String()),
   restartDelayMs: Type.Optional(Type.Number()),
@@ -65,7 +46,6 @@ const GatewayToolSchema = Type.Object({
 // NOTE: We intentionally avoid top-level `allOf`/`anyOf`/`oneOf` conditionals here:
 // - OpenAI rejects tool schemas that include these keywords at the *top-level*.
 // - Claude/Vertex has other JSON Schema quirks.
-// Conditional requirements (like `raw` for config.apply) are enforced at runtime.
 
 export function createGatewayTool(opts?: {
   agentSessionKey?: string;
@@ -76,7 +56,7 @@ export function createGatewayTool(opts?: {
     name: "gateway",
     ownerOnly: true,
     description:
-      "Restart, inspect a specific config schema path, apply config, or update the gateway in-place (SIGUSR1). Use config.schema.lookup with a targeted dot path before config edits. Use config.patch for safe partial config updates (merges with existing). Use config.apply only when replacing entire config. Both trigger restart after writing. Always pass a human-readable completion message via the `note` parameter so the system can deliver it to the user after restart.",
+      "Restart, inspect a specific config schema path, or update the gateway in-place (SIGUSR1). Config writes (config.apply, config.patch) are disabled — all openclaw.json changes must go through flashclaw-im-channel.",
     parameters: GatewayToolSchema,
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
@@ -151,25 +131,6 @@ export function createGatewayTool(opts?: {
         return { sessionKey, note, restartDelayMs };
       };
 
-      const resolveConfigWriteParams = async (): Promise<{
-        raw: string;
-        baseHash: string;
-        sessionKey: string | undefined;
-        note: string | undefined;
-        restartDelayMs: number | undefined;
-      }> => {
-        const raw = readStringParam(params, "raw", { required: true });
-        let baseHash = readStringParam(params, "baseHash");
-        if (!baseHash) {
-          const snapshot = await callGatewayTool("config.get", gatewayOpts, {});
-          baseHash = resolveBaseHashFromSnapshot(snapshot);
-        }
-        if (!baseHash) {
-          throw new Error("Missing baseHash from config snapshot.");
-        }
-        return { raw, baseHash, ...resolveGatewayWriteMeta() };
-      };
-
       if (action === "config.get") {
         const result = await callGatewayTool("config.get", gatewayOpts, {});
         return jsonResult({ ok: true, result });
@@ -180,30 +141,6 @@ export function createGatewayTool(opts?: {
           label: "path",
         });
         const result = await callGatewayTool("config.schema.lookup", gatewayOpts, { path });
-        return jsonResult({ ok: true, result });
-      }
-      if (action === "config.apply") {
-        const { raw, baseHash, sessionKey, note, restartDelayMs } =
-          await resolveConfigWriteParams();
-        const result = await callGatewayTool("config.apply", gatewayOpts, {
-          raw,
-          baseHash,
-          sessionKey,
-          note,
-          restartDelayMs,
-        });
-        return jsonResult({ ok: true, result });
-      }
-      if (action === "config.patch") {
-        const { raw, baseHash, sessionKey, note, restartDelayMs } =
-          await resolveConfigWriteParams();
-        const result = await callGatewayTool("config.patch", gatewayOpts, {
-          raw,
-          baseHash,
-          sessionKey,
-          note,
-          restartDelayMs,
-        });
         return jsonResult({ ok: true, result });
       }
       if (action === "update.run") {

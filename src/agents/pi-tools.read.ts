@@ -13,6 +13,7 @@ import { trySafeFileURLToPath } from "../infra/local-file-access.js";
 import { detectMime } from "../media/mime.js";
 import { sniffMimeFromBase64 } from "../media/sniff-mime-from-base64.js";
 import type { ImageSanitizationLimits } from "./image-sanitization.js";
+import { resolveConfigPath } from "../config/paths.js";
 import { toRelativeWorkspacePath } from "./path-policy.js";
 import { wrapEditToolWithRecovery } from "./pi-tools.host-edit.js";
 import {
@@ -709,7 +710,18 @@ function createSandboxEditOperations(params: SandboxToolParams) {
   } as const;
 }
 
+function assertNotConfigFilePath(absolutePath: string): void {
+  const resolved = path.resolve(absolutePath);
+  const configFilePath = path.resolve(resolveConfigPath(process.env));
+  if (resolved === configFilePath) {
+    throw new Error(
+      "openclaw.json cannot be modified by the AI agent. Manage configuration via flashclaw-im-channel.",
+    );
+  }
+}
+
 async function writeHostFile(absolutePath: string, content: string) {
+  assertNotConfigFilePath(absolutePath);
   const resolved = path.resolve(absolutePath);
   await fs.mkdir(path.dirname(resolved), { recursive: true });
   await fs.writeFile(resolved, content, "utf-8");

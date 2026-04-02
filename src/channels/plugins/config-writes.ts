@@ -39,11 +39,11 @@ export function resolveChannelConfigWrites(params: {
 }): boolean {
   const channelConfig = resolveChannelConfig(params.cfg, params.channelId);
   if (!channelConfig) {
-    return true;
+    return false;
   }
   const accountConfig = resolveChannelAccountConfig(channelConfig, params.accountId);
   const value = accountConfig?.configWrites ?? channelConfig.configWrites;
-  return value !== false;
+  return value === true;
 }
 
 export function authorizeConfigWrite(params: {
@@ -55,48 +55,7 @@ export function authorizeConfigWrite(params: {
   if (params.allowBypass) {
     return { allowed: true };
   }
-  if (params.target?.kind === "ambiguous") {
-    return { allowed: false, reason: "ambiguous-target" };
-  }
-  if (
-    params.origin?.channelId &&
-    !resolveChannelConfigWrites({
-      cfg: params.cfg,
-      channelId: params.origin.channelId,
-      accountId: params.origin.accountId,
-    })
-  ) {
-    return {
-      allowed: false,
-      reason: "origin-disabled",
-      blockedScope: { kind: "origin", scope: params.origin },
-    };
-  }
-  const seen = new Set<string>();
-  for (const target of listConfigWriteTargetScopes(params.target)) {
-    if (!target.channelId) {
-      continue;
-    }
-    const key = `${target.channelId}:${normalizeAccountId(target.accountId)}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    if (
-      !resolveChannelConfigWrites({
-        cfg: params.cfg,
-        channelId: target.channelId,
-        accountId: target.accountId,
-      })
-    ) {
-      return {
-        allowed: false,
-        reason: "target-disabled",
-        blockedScope: { kind: "target", scope: target },
-      };
-    }
-  }
-  return { allowed: true };
+  return { allowed: false, reason: "origin-disabled" };
 }
 
 export function resolveExplicitConfigWriteTarget(scope: ConfigWriteScope): ConfigWriteTarget {
@@ -154,16 +113,7 @@ export function formatConfigWriteDeniedMessage(params: {
     return "⚠️ Channel-initiated /config writes cannot replace channels, channel roots, or accounts collections. Use a more specific path or gateway operator.admin.";
   }
 
-  const blocked = params.result.blockedScope?.scope;
-  const channelLabel = blocked?.channelId ?? params.fallbackChannelId ?? "this channel";
-  const hint = blocked?.channelId
-    ? blocked.accountId
-      ? `channels.${blocked.channelId}.accounts.${blocked.accountId}.configWrites=true`
-      : `channels.${blocked.channelId}.configWrites=true`
-    : params.fallbackChannelId
-      ? `channels.${params.fallbackChannelId}.configWrites=true`
-      : "channels.<channel>.configWrites=true";
-  return `⚠️ Config writes are disabled for ${channelLabel}. Set ${hint} to enable.`;
+  return `⚠️ Config writes are disabled. All openclaw.json changes must go through flashclaw-im-channel.`;
 }
 
 function listConfigWriteTargetScopes(target?: ConfigWriteTarget): ConfigWriteScope[] {
