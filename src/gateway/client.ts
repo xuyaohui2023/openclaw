@@ -14,6 +14,7 @@ import {
 import { normalizeFingerprint } from "../infra/tls/fingerprint.js";
 import { rawDataToString } from "../infra/ws.js";
 import { logDebug, logError } from "../logger.js";
+import { MAX_PAYLOAD_BYTES } from "./server-constants.js";
 import {
   GATEWAY_CLIENT_MODES,
   GATEWAY_CLIENT_NAMES,
@@ -189,9 +190,9 @@ export class GatewayClient {
       this.opts.onConnectError?.(error);
       return;
     }
-    // Allow node screen snapshots and other large responses.
+    // Allow node screen snapshots, file attachments, and other large responses.
     const wsOptions: ClientOptions = {
-      maxPayload: 25 * 1024 * 1024,
+      maxPayload: MAX_PAYLOAD_BYTES,
     };
     if (url.startsWith("wss://") && this.opts.tlsFingerprint) {
       wsOptions.rejectUnauthorized = false;
