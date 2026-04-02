@@ -647,14 +647,29 @@ export function createOpenClawReadTool(
         normalized ??
         (params && typeof params === "object" ? (params as Record<string, unknown>) : undefined);
       assertRequiredParams(record, CLAUDE_PARAM_GROUPS.read, base.name);
-      const result = await executeReadWithAdaptivePaging({
-        base,
-        toolCallId,
-        args: (normalized ?? params ?? {}) as Record<string, unknown>,
-        signal,
-        maxBytes: resolveAdaptiveReadMaxBytes(options),
-      });
       const filePath = typeof record?.path === "string" ? String(record.path) : "<unknown>";
+      let result: AgentToolResult<unknown>;
+      try {
+        result = await executeReadWithAdaptivePaging({
+          base,
+          toolCallId,
+          args: (normalized ?? params ?? {}) as Record<string, unknown>,
+          signal,
+          maxBytes: resolveAdaptiveReadMaxBytes(options),
+        });
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException | undefined)?.code === "EISDIR") {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `read: ${filePath} is a directory, not a file. Use a file path instead.`,
+              },
+            ],
+          } as AgentToolResult<unknown>;
+        }
+        throw err;
+      }
       const strippedDetailsResult = stripReadTruncationContentDetails(result);
       const normalizedResult = await normalizeReadImageResult(strippedDetailsResult, filePath);
       return sanitizeToolResultImages(
