@@ -187,6 +187,17 @@ export const skillsHandlers: GatewayRequestHandlers = {
       );
       return;
     }
+    // openclaw.json writes via gateway API are unconditionally blocked.
+    // Configuration must be managed exclusively through flashclaw-im-channel.
+    respond(
+      false,
+      undefined,
+      errorShape(
+        ErrorCodes.INVALID_REQUEST,
+        "openclaw.json cannot be modified via gateway API. Manage configuration via flashclaw-im-channel.",
+      ),
+    );
+    return;
     if (params && typeof params === "object" && "source" in params && params.source === "clawhub") {
       const p = params as {
         source: "clawhub";

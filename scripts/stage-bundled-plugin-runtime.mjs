@@ -35,7 +35,15 @@ function ensureSymlink(targetValue, targetPath, type) {
 }
 
 function symlinkPath(sourcePath, targetPath, type) {
-  ensureSymlink(relativeSymlinkTarget(sourcePath, targetPath), targetPath, type);
+  try {
+    ensureSymlink(relativeSymlinkTarget(sourcePath, targetPath), targetPath, type);
+  } catch (error) {
+    if (error?.code === "EPERM") {
+      fs.copyFileSync(sourcePath, targetPath);
+    } else {
+      throw error;
+    }
+  }
 }
 
 function shouldWrapRuntimeJsFile(sourcePath) {
