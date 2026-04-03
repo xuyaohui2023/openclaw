@@ -103,8 +103,8 @@ export const DEFAULT_INPUT_FILE_MIMES = [
   "application/json",
   "application/pdf",
 ];
-export const DEFAULT_INPUT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-export const DEFAULT_INPUT_FILE_MAX_BYTES = 5 * 1024 * 1024;
+export const DEFAULT_INPUT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const DEFAULT_INPUT_FILE_MAX_BYTES = 2 * 1024 * 1024;
 export const DEFAULT_INPUT_FILE_MAX_CHARS = 200_000;
 export const DEFAULT_INPUT_MAX_REDIRECTS = 3;
 export const DEFAULT_INPUT_TIMEOUT_MS = 10_000;

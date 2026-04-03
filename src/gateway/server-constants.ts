@@ -1,8 +1,8 @@
 // Keep server maxPayload aligned with gateway client maxPayload so high-res canvas snapshots
 // don't get disconnected mid-invoke with "Max payload size exceeded".
-// 150MB: supports file attachments up to 100MB (base64 adds ~33% overhead → ~134MB frame).
-export const MAX_PAYLOAD_BYTES = 150 * 1024 * 1024;
-export const MAX_BUFFERED_BYTES = 300 * 1024 * 1024; // per-connection send buffer limit (2x max payload)
+// 70MB: supports total file attachments up to 50MB (base64 adds ~33% overhead → ~67MB frame).
+export const MAX_PAYLOAD_BYTES = 70 * 1024 * 1024;
+export const MAX_BUFFERED_BYTES = 140 * 1024 * 1024; // per-connection send buffer limit (2x max payload)
 export const MAX_PREAUTH_PAYLOAD_BYTES = 64 * 1024;
 
 const DEFAULT_MAX_CHAT_HISTORY_MESSAGES_BYTES = 6 * 1024 * 1024; // keep history responses comfortably under client WS limits

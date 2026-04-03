@@ -117,14 +117,15 @@ function validateAttachmentBase64OrThrow(
  * Parse attachments and extract images and documents as structured content.
  * Images are returned as structured content blocks compatible with Claude API.
  * Documents (PDF, TXT, CSV, JSON, Markdown) are extracted and appended to the message text.
- * Max file size: 100MB per attachment.
+ * Max file size: 2MB per attachment, 50MB total.
  */
 export async function parseMessageWithAttachments(
   message: string,
   attachments: ChatAttachment[] | undefined,
-  opts?: { maxBytes?: number; log?: AttachmentLog },
+  opts?: { maxBytes?: number; maxTotalBytes?: number; log?: AttachmentLog },
 ): Promise<ParsedMessageWithImages> {
-  const maxBytes = opts?.maxBytes ?? 100_000_000; // 100MB
+  const maxBytes = opts?.maxBytes ?? 2 * 1024 * 1024; // 2MB per file
+  const maxTotalBytes = opts?.maxTotalBytes ?? 50 * 1024 * 1024; // 50MB total
   const log = opts?.log;
   if (!attachments || attachments.length === 0) {
     return { message, images: [] };
@@ -132,6 +133,7 @@ export async function parseMessageWithAttachments(
 
   const images: ChatImageContent[] = [];
   const fileBlocks: string[] = [];
+  let totalBytes = 0;
 
   for (const [idx, att] of attachments.entries()) {
     if (!att) {
@@ -141,7 +143,13 @@ export async function parseMessageWithAttachments(
       stripDataUrlPrefix: true,
       requireImageMime: false,
     });
-    validateAttachmentBase64OrThrow(normalized, { maxBytes });
+    const attachmentBytes = validateAttachmentBase64OrThrow(normalized, { maxBytes });
+    totalBytes += attachmentBytes;
+    if (totalBytes > maxTotalBytes) {
+      throw new Error(
+        `total attachment size exceeds limit (${totalBytes} > ${maxTotalBytes} bytes)`,
+      );
+    }
     const { base64: b64, label, mime } = normalized;
 
     const providedMime = normalizeMime(mime);
