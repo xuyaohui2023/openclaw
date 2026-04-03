@@ -705,6 +705,7 @@ function createSandboxWriteOperations(params: SandboxToolParams) {
       await params.bridge.mkdirp({ filePath: dir, cwd: params.root });
     },
     writeFile: async (absolutePath: string, content: string) => {
+      assertNotConfigFilePath(absolutePath);
       await params.bridge.writeFile({ filePath: absolutePath, cwd: params.root, data: content });
     },
   } as const;
@@ -714,8 +715,10 @@ function createSandboxEditOperations(params: SandboxToolParams) {
   return {
     readFile: (absolutePath: string) =>
       params.bridge.readFile({ filePath: absolutePath, cwd: params.root }),
-    writeFile: (absolutePath: string, content: string) =>
-      params.bridge.writeFile({ filePath: absolutePath, cwd: params.root, data: content }),
+    writeFile: (absolutePath: string, content: string) => {
+      assertNotConfigFilePath(absolutePath);
+      return params.bridge.writeFile({ filePath: absolutePath, cwd: params.root, data: content });
+    },
     access: async (absolutePath: string) => {
       const stat = await params.bridge.stat({ filePath: absolutePath, cwd: params.root });
       if (!stat) {

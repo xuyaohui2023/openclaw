@@ -29,6 +29,7 @@ import {
 } from "../../plugins/status.js";
 import { setPluginEnabledInConfig } from "../../plugins/toggle-config.js";
 import { resolveUserPath } from "../../utils.js";
+import { normalizeChannelId } from "../../channels/registry.js";
 import { isInternalMessageChannel } from "../../utils/message-channel.js";
 import {
   rejectNonOwnerCommand,
@@ -38,6 +39,7 @@ import {
 } from "./command-gates.js";
 import type { CommandHandler } from "./commands-types.js";
 import { parsePluginsCommand } from "./plugins-commands.js";
+import { resolveConfigWriteDeniedText } from "./config-write-authorization.js";
 
 function renderJsonBlock(label: string, value: unknown): string {
   return `${label}\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
@@ -433,6 +435,21 @@ export const handlePluginsCommand: CommandHandler = async (params, allowTextComm
       reply: {
         text: `⚠️ Config invalid after /plugins ${pluginsCommand.action} (${issue.path}: ${issue.message}).`,
       },
+    };
+  }
+  const channelId = params.command.channelId ?? normalizeChannelId(params.command.channel);
+  const deniedText = resolveConfigWriteDeniedText({
+    cfg: params.cfg,
+    channel: params.command.channel,
+    channelId,
+    accountId: params.ctx.AccountId,
+    gatewayClientScopes: params.ctx.GatewayClientScopes,
+    target: { kind: "global" },
+  });
+  if (deniedText) {
+    return {
+      shouldContinue: false,
+      reply: { text: deniedText },
     };
   }
   await writeConfigFile(validated.config);

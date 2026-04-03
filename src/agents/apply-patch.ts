@@ -235,7 +235,16 @@ function resolvePatchFileOps(options: ApplyPatchOptions): PatchFileOps {
         const buf = await bridge.readFile({ filePath, cwd: root });
         return buf.toString("utf8");
       },
-      writeFile: (filePath, content) => bridge.writeFile({ filePath, cwd: root, data: content }),
+      writeFile: async (filePath, content) => {
+        const resolved = path.resolve(filePath);
+        const configFilePath = path.resolve(resolveConfigPath(process.env));
+        if (resolved === configFilePath) {
+          throw new Error(
+            "openclaw.json cannot be modified by the AI agent. Manage configuration via flashclaw-im-channel.",
+          );
+        }
+        await bridge.writeFile({ filePath, cwd: root, data: content });
+      },
       remove: (filePath) => bridge.remove({ filePath, cwd: root, force: false }),
       mkdirp: (dir) => bridge.mkdirp({ filePath: dir, cwd: root }),
     };
