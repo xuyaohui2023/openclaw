@@ -124,7 +124,7 @@ export async function parseMessageWithAttachments(
   attachments: ChatAttachment[] | undefined,
   opts?: { maxBytes?: number; maxTotalBytes?: number; log?: AttachmentLog },
 ): Promise<ParsedMessageWithImages> {
-  const maxBytes = opts?.maxBytes ?? 2 * 1024 * 1024; // 2MB per file
+  const maxBytes = opts?.maxBytes ?? 10 * 1024 * 1024; // 10MB per file
   const maxTotalBytes = opts?.maxTotalBytes ?? 50 * 1024 * 1024; // 50MB total
   const log = opts?.log;
   if (!attachments || attachments.length === 0) {

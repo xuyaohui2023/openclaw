@@ -1,7 +1,7 @@
 // Keep server maxPayload aligned with gateway client maxPayload so high-res canvas snapshots
 // don't get disconnected mid-invoke with "Max payload size exceeded".
 // 70MB: supports total file attachments up to 50MB (base64 adds ~33% overhead → ~67MB frame).
-export const MAX_PAYLOAD_BYTES = 70 * 1024 * 1024;
+export const MAX_PAYLOAD_BYTES = 70 * 1024 * 1024; // 50MB files × 1.33 base64 overhead
 export const MAX_BUFFERED_BYTES = 140 * 1024 * 1024; // per-connection send buffer limit (2x max payload)
 export const MAX_PREAUTH_PAYLOAD_BYTES = 64 * 1024;
 

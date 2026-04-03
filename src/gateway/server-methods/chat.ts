@@ -1294,7 +1294,7 @@ export const chatHandlers: GatewayRequestHandlers = {
     if (normalizedAttachments.length > 0) {
       try {
         const parsed = await parseMessageWithAttachments(inboundMessage, normalizedAttachments, {
-          maxBytes: 2 * 1024 * 1024,
+          maxBytes: 10 * 1024 * 1024,
           maxTotalBytes: 50 * 1024 * 1024,
           log: context.logGateway,
         });
